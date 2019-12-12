@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MapsActivity"
+    >
+
+    <RelativeLayout
+        android:id="@+id/ly_top_bar"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_alignParentTop="true"
+        android:background="@android:color/white">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            >
+
+            <TextView
+                android:id="@+id/txt_topbar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_centerInParent="true"
+                android:gravity="center"
+                android:textSize="25sp"
+                android:textColor="#1296db"
+                android:textStyle="bold"
+                android:text="WeShare"/>
+
+            <ImageButton
+                android:layout_width="35dp"
+                android:layout_height="35dp"
+                android:src="@drawable/edddd"
+                android:layout_marginLeft="355dp"
+                android:layout_centerVertical="true"
+                android:background="#00000000"
+                android:id="@+id/edit_msg"
+                >
+
+            </ImageButton>
+
+        </RelativeLayout>
+    </RelativeLayout>
+
+
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+        android:layout_below="@+id/ly_top_bar"
+        android:layout_above="@+id/ly_tap_bar"
+        >
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recy_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="0"
+                    android:scrollbars="vertical"/>
+
+
+
+                <RelativeLayout
+                    android:layout_height="0dp"
+                    android:layout_weight="100"
+                    android:layout_width="match_parent"
+                    android:id="@+id/ly_content"
+                    >
+
+                    <com.example.mapact_example.models.MapWrapperLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                        xmlns:tools="http://schemas.android.com/tools"
+                        android:id="@+id/map_relative_layout"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        >
+
+
+                        <fragment
+                            android:id="@+id/map"
+                            android:name="com.google.android.gms.maps.SupportMapFragment"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                             />
+
+
+                    </com.example.mapact_example.models.MapWrapperLayout>
+
+
+                    <Button
+                        android:layout_width="35dp"
+                        android:layout_height="35dp"
+                        android:text="x"
+                        android:id="@+id/btn_x">
+
+
+                    </Button>
+
+                    <Button
+                        android:layout_width="35dp"
+                        android:layout_height="35dp"
+                        android:layout_marginLeft="375dp"
+                        android:text="O"
+                        android:id="@+id/btn_reset">
+                    </Button>
+
+
+                </RelativeLayout>
+
+
+
+            </LinearLayout>
+
+
+
+
+
+
+        </RelativeLayout>
+    </RelativeLayout>
+
+
+
+
+
+
+    <RelativeLayout
+        android:id="@+id/ly_tap_bar"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_alignParentBottom="true"
+        android:background="#FFFFFF"
+        >
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:background="#e6e6e6">
+
+            <EditText
+                android:id="@+id/txt_username_frag"
+                android:layout_width="0dp"
+                android:layout_height="35dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@drawable/edit_text_format"
+                android:padding="5dp"
+                android:drawablePadding="3dp"
+                android:layout_marginLeft="10dp"
+                android:singleLine="true"
+                android:hint="username"
+                android:imeOptions="actionNext"
+                android:nextFocusForward="@+id/txt_input_frag"/>
+
+            <EditText
+                android:id="@+id/txt_input_frag"
+                android:layout_width="0dp"
+                android:layout_height="35dp"
+                android:layout_toRightOf="@+id/txt_username_frag"
+                android:layout_marginLeft="5dp"
+                android:layout_weight="2"
+                android:drawablePadding="3dp"
+                android:background="@drawable/edit_text_format"
+                android:gravity="center"
+                android:padding="5dp"
+                android:textSize="16sp"
+                android:hint="To share: "
+                android:imeOptions="actionSend"
+                android:layout_marginRight="10dp"
+                android:singleLine="true"/>
+
+
+        </LinearLayout>
+    </RelativeLayout>
+
+
+
+
+
+
+
+
+
+
+</RelativeLayout>
