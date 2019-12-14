@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">mapact_example</string>
-    <string name="title_activity_maps">Map</string>
+    <string name="app_name">WeShare</string>
+    <string name="title_activity_maps">WeShare</string>
 </resources>

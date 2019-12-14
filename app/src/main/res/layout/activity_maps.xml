@@ -34,8 +34,9 @@
             <ImageButton
                 android:layout_width="35dp"
                 android:layout_height="35dp"
-                android:src="@drawable/edddd"
-                android:layout_marginLeft="355dp"
+                android:src="@drawable/dddd"
+                android:layout_alignParentRight="true"
+                android:layout_marginRight="15dp"
                 android:layout_centerVertical="true"
                 android:background="#00000000"
                 android:id="@+id/edit_msg"
@@ -101,40 +102,19 @@
 
 
                     <Button
+                        android:layout_marginTop="15dp"
+                        android:layout_marginLeft="15dp"
                         android:layout_width="35dp"
                         android:layout_height="35dp"
-                        android:text="x"
+                        android:background="@drawable/expand"
                         android:id="@+id/btn_x">
-
-
                     </Button>
-
-                    <Button
-                        android:layout_width="35dp"
-                        android:layout_height="35dp"
-                        android:layout_marginLeft="375dp"
-                        android:text="O"
-                        android:id="@+id/btn_reset">
-                    </Button>
-
 
                 </RelativeLayout>
-
-
-
             </LinearLayout>
-
-
-
-
-
 
         </RelativeLayout>
     </RelativeLayout>
-
-
-
-
 
 
     <RelativeLayout
@@ -162,7 +142,8 @@
                 android:drawablePadding="3dp"
                 android:layout_marginLeft="10dp"
                 android:singleLine="true"
-                android:hint="username"
+                android:hint="Name"
+                android:textSize="16sp"
                 android:imeOptions="actionNext"
                 android:nextFocusForward="@+id/txt_input_frag"/>
 
@@ -178,7 +159,7 @@
                 android:gravity="center"
                 android:padding="5dp"
                 android:textSize="16sp"
-                android:hint="To share: "
+                android:hint="To share : "
                 android:imeOptions="actionSend"
                 android:layout_marginRight="10dp"
                 android:singleLine="true"/>
@@ -186,14 +167,5 @@
 
         </LinearLayout>
     </RelativeLayout>
-
-
-
-
-
-
-
-
-
 
 </RelativeLayout>

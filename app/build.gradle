@@ -36,6 +36,9 @@ dependencies {
     //google map utiles for clustering
     implementation 'com.google.maps.android:android-maps-utils:0.5'
     //noinspection GradleCompatible
+    implementation 'com.squareup.okhttp3:okhttp:3.6.0'
+    implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'com.rabtman.wsmanager:wsmanager:1.0.2'
 
 
 }

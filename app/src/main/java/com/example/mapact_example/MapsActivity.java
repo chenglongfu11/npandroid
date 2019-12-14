@@ -57,10 +57,23 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.rabtman.wsmanager.WsManager;
+import com.rabtman.wsmanager.listener.WsStatusListener;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
+import okio.ByteString;
+
+//import com.google.android.gms.maps.model.LatLng;
 
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
@@ -69,28 +82,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LocationListener, View.OnClickListener, GoogleMap.OnInfoWindowClickListener,
         TextView.OnEditorActionListener, Recycle_adapter.MessageListClickListener {
 
-    private GoogleMap mMap;
-    private GoogleApiClient mGoogleApiClient;
-    private FusedLocationProviderClient mFusedLocationClient;
+    private static final String URL ="ws://ec2-13-48-124-43.eu-north-1.compute.amazonaws.com:8080/echo";
     private static final String TAG ="MapsActivity";
-    private boolean mLocationPermissionGranted;
     private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
-    private Location mLastLocation;
-    private ArrayList<Marker> markerList = new ArrayList<>();
-    private ArrayList<LatLng> positionList = new ArrayList<>();
-
-    private final LatLng mDefaultLocation = new LatLng(-33.8523341, 151.2106085);
     private static final int MAP_LAYOUT_STATE_CONTRACTED = 0;
     private static final int MAP_LAYOUT_STATE_EXPANDED = 1;
     private int mMapLayoutState = 1;
 
+    private GoogleMap mMap;
+    private GoogleApiClient mGoogleApiClient;
+    private FusedLocationProviderClient mFusedLocationClient;
+    private boolean mLocationPermissionGranted;
+
+
+    private ArrayList<Marker> markerList = new ArrayList<>();
+    private List<Message> messagesList = new ArrayList<>();
+
     private Context mContext;
     private LatLng myPlace;
-    private double wayLatitude = 0.0, wayLongitude = 0.0;
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
     private Marker mCurrLocationMarker;
-    private List<Message> messagesList = new ArrayList<>();
 
     private RelativeLayout mMapContainer;
     private RecyclerView recyclerView;
@@ -99,12 +111,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private EditText mUsername;
     private EditText mShareMsg;
     private Button mResetBtn;
-
     private ViewGroup infoWindow;
     private TextView infoTitle;
     private TextView infoSnippet;
     private Button infoButton;
     private OnInfoWindowElemTouchListener infoButtonListener;
+
+    private OkHttpClient client;
+    private WebSocket ws;
+    private Marker myMarker;
+    private WsManager wsManager;
 
     public MapsActivity() {
     }
@@ -123,7 +139,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mShareMsg.setOnEditorActionListener(this);         //click return on keyboard to send message
         findViewById(R.id.edit_msg).setOnClickListener(this);           // click listener for post message  right top button
         findViewById(R.id.btn_x).setOnClickListener(this);               //map extand and compact button
-        findViewById(R.id.btn_reset).setOnClickListener(this);
 
         //connect to mapFragment, another option is mapView
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -149,75 +164,99 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationRequest.setInterval(10 * 1000); // 10 seconds
         locationRequest.setFastestInterval(5 * 1000); // 5 seconds
 
-//        locationCallback = new LocationCallback() {
-//            @Override
-//            public void onLocationResult(LocationResult locationResult) {
-//                if (locationResult == null) {
-//                    return;
-//                }
-//                for (Location location : locationResult.getLocations()) {
-//                    if (location != null) {
-//                        wayLatitude = location.getLatitude();
-//                        wayLongitude = location.getLongitude();
-//
-//
-//                        mFusedLocationClient.removeLocationUpdates(locationCallback);
-//                    }
-//                }
-//            }
-//        };
+        //connect to websocket
 
-        //get message list from server
-        messagesList.add(new Message("Bob","what's the weather",
-                new LatLng(59.348720,18.071006),new Date(System.currentTimeMillis())));
+        if (wsManager != null) {
+            wsManager.stopConnect();
+            wsManager = null;
+        }
+        wsManager = new WsManager.Builder(getBaseContext())
+                .client(
+                        new OkHttpClient().newBuilder()
+                                .pingInterval(15, TimeUnit.SECONDS)
+                                .retryOnConnectionFailure(true)
+                                .build())
+                .needReconnect(true)
+                .wsUrl(URL)
+                .build();
+        wsManager.setWsStatusListener(wsStatusListener);
+        wsManager.startConnect();
 
-        messagesList.add(new Message("Alice","Today is busy",
-                new LatLng(59.347724,18.072571),new Date(System.currentTimeMillis())));
-
-
-
-//        String bundle = getIntent().getStringExtra("msginfo");
-//        if(bundle !=null) {
-//
-//            try {
-//                // get JSONObject from JSON file
-//                JSONObject mJsonObject = new JSONObject(bundle);
-//                // fetch JSONObject named employee
-//                Message newmsg = (Message) mJsonObject.get("message");
-//                //Message newMsg= (Message)newmsg;
-//                messagesList.add(newmsg);
-//
-//            } catch (JSONException e) {
-//                e.printStackTrace();
-//
-//
-//            }
-//        }
-
-
-
+//        client = new OkHttpClient();
+//        Request request = new Request.Builder().url("ws://ec2-13-48-124-43.eu-north-1.compute.amazonaws.com:8080/echo").build();
+//        EchoWebSocketListener listener = new EchoWebSocketListener();
+//        ws = client.newWebSocket(request, listener);
 
         //notification
         notifica();
-
 
         //recycle view
         recyclerView.setHasFixedSize(true);
         initUserListRecyclerView();
 
-
-        // specify an adapter (see also next example)
-
-
-
-
-
     }
+
+
+    private WsStatusListener wsStatusListener = new WsStatusListener() {
+        @Override
+        public void onOpen(Response response) {
+            Log.d(TAG, "WsManager-----onOpen");
+        }
+
+        @Override
+        public void onMessage(String json) {
+            Log.d(TAG, "WsManager-----onMessage");
+
+            Gson gson = new GsonBuilder().setDateFormat("EEE, dd MMM yyyy HH:mm:ss").create();
+            Message message = gson.fromJson(json, Message.class);
+            runOnUiThread(new Runnable() {
+                @RequiresApi(api = Build.VERSION_CODES.O)
+                @Override
+                public void run() {
+                    retriveNewLocations(message);
+                }
+            });
+
+        }
+
+        @Override
+        public void onMessage(ByteString bytes) {
+            Log.d(TAG, "WsManager-----onMessage");
+        }
+
+        @Override
+        public void onReconnect() {
+            Log.d(TAG, "WsManager-----onReconnect");
+            Toast.makeText(getApplicationContext(),"Connect failed, reconnecting", Toast.LENGTH_LONG).show();
+
+        }
+
+        @Override
+        public void onClosing(int code, String reason) {
+            Log.d(TAG, "WsManager-----onClosing");
+
+        }
+
+        @Override
+        public void onClosed(int code, String reason) {
+            Log.d(TAG, "WsManager-----onClosed");
+
+        }
+
+        @Override
+        public void onFailure(Throwable t, Response response) {
+            Log.d(TAG, "WsManager-----onFailure");
+
+        }
+    };
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 //        stopLocationUpdates();
+
+        //client.dispatcher().executorService().shutdown();
+        wsManager.stopConnect();
     }
 
     @Override
@@ -370,7 +409,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         getLocation();
         Log.d(TAG,"on MapReady, my location is got");
-        showMessageLocations();
+        //showMessageLocations();
 
 
 
@@ -396,7 +435,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Marker marker = mMap.addMarker(options);
                 markerList.add(marker);
                 Log.d(TAG, "Message List locations are set");
-                positionList.add(message.getLocation());
+                //positionList.add(message.getLocation());
 
             }
         }
@@ -441,30 +480,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
 
-//For each get location: get latitude, longitute, makeroptions, move camera
+//For my location: get latitude, longitute, makeroptions, move camera
     private void getLocation() {
         Log.i(TAG,"get location is working");
 
             mFusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
                              if (location != null) {
-                                 wayLatitude = location.getLatitude();
-                                 wayLongitude = location.getLongitude();
-                               //  GeoPoint geoPoint =new GeoPoint()
-                                 myPlace = new LatLng(wayLatitude, wayLongitude);
 
-                                 //Marker to show the map on the location
-                                 MarkerOptions markerOptions = new MarkerOptions();
-                                 markerOptions.position(myPlace);
-                                 markerOptions.title("THIS IS Current Position");
-                                 markerOptions.snippet("This is you");
-                                 markerOptions.icon(BitmapDescriptorFactory.fromBitmap(createMarker("Me", "This is you")));
+                                 myPlace = new LatLng(location.getLatitude(), location.getLongitude());
 
-                                 Marker marker = mMap.addMarker(markerOptions);
-                                 messagesList.add(new Message("Me","Welcome to WeShare",myPlace,new Date(System.currentTimeMillis())));
-                                 //marker.showInfoWindow();
-                                 positionList.add(myPlace);
-                                 markerList.add(marker);
-
+//                                 //Marker to show the map on the location
+//                                 MarkerOptions markerOptions = new MarkerOptions();
+//                                 markerOptions.position(myPlace);
+//                                 markerOptions.title("THIS IS Current Position");
+//                                 markerOptions.snippet("This is you");
+//                                 markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.local_marker));
+//                                 myMarker = mMap.addMarker(markerOptions);
                                  mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myPlace, 16));
                              } else {
                                  mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
@@ -492,7 +523,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.edit_msg:
-                Intent it = new Intent(getApplicationContext(), PostMessage.class);
+                Intent it = new Intent(getApplicationContext(), AdminActivity.class);
                 startActivity(it);
             case R.id.btn_x: {
                 if (mMapLayoutState == MAP_LAYOUT_STATE_CONTRACTED) {
@@ -503,10 +534,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     contractMapAnimation();
                 }
             }
-            case R.id.btn_reset:{
-                    resetMap();
-                    showMessageLocations();
-            }
+
         }
     }
 
@@ -580,9 +608,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             final AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
             builder.setMessage(marker.getSnippet())
                     .setCancelable(true)
-                    .setPositiveButton("LIKE", new DialogInterface.OnClickListener() {
+                    .setPositiveButton("REMOVE", new DialogInterface.OnClickListener() {
                         public void onClick(@SuppressWarnings("unused") final DialogInterface dialog, @SuppressWarnings("unused") final int id) {
-                            dialog.dismiss();
+                            int i = markerList.indexOf(marker);
+                            Log.d(TAG,"onAlertDialog: ,markerList size is "+markerList.size());
+                            Log.d(TAG,"onAlertDialog: ,messagelist  size is "+messagesList.size());
+
+                                messagesList.remove(i);
+                                markerList.remove(i);
+                                marker.remove();
+
+                                Log.d(TAG,"onAlertDialog: , new markerList size is "+markerList.size());
+                                Log.d(TAG,"onAlertDialog: ,new messagelist  size is "+messagesList.size());
+
                         }
                     })
                     .setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
@@ -611,12 +649,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             else {
                 Message newMsg = new Message(mtxtUsername,mtxtShareMsg,myPlace,new Date(System.currentTimeMillis()));
-                messagesList.add(newMsg);
-                showMessageLocations();
-                mUsername.setText("");
-                mShareMsg.setText("");
-                Toast.makeText(this, "Input message is " +newMsg.toString(), Toast.LENGTH_SHORT).show();
+                //messagesList.add(newMsg);
+                //showMessageLocations();
+
+                if (wsManager != null && wsManager.isWsConnected()) {
+                    Gson gson = new GsonBuilder().setDateFormat("EEE, dd MMM yyyy HH:mm:ss").create();
+                    String json = gson.toJson(newMsg);
+                    boolean isSend = wsManager.sendMessage(json);
+                    if(isSend){
+                        Toast.makeText(this, "Hi "+mUsername+", you shared "+mShareMsg, Toast.LENGTH_SHORT).show();
+                        mUsername.setText("");
+                        mShareMsg.setText("");
+                    }
+                    else{
+                        Toast.makeText(this,"WeShare failed to share your message",Toast.LENGTH_SHORT).show();
+                    }
+
+                }else{
+                    Toast.makeText(getBaseContext(), "Please connect to server", Toast.LENGTH_SHORT).show();
+                }
+
+
                 //transfer message to database.
+
+
+//                mUsername.setText("");
+//                mShareMsg.setText("");
+//                Gson gson = new GsonBuilder().setDateFormat("EEE, dd MMM yyyy HH:mm:ss").create();
+//                String json = gson.toJson(newMsg);
+//                ws.send(json);
+//                Log.d(TAG,"On Edidtor"+json);
+
             }
                 InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 imm.hideSoftInputFromWindow(getWindow().getDecorView().getWindowToken(), 0);
@@ -704,7 +767,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-//    //update messges and locations every 3 seconds
+    //update messges and locations every 3 seconds
 //    private Handler mHandler = new Handler();
 //    private Runnable mRunnable;
 //    private static final int LOCATION_UPDATE_INTERVAL = 3000;
@@ -714,7 +777,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //        mHandler.postDelayed(mRunnable = new Runnable() {
 //            @Override
 //            public void run() {
-//                retriveMessageLocations();
+//                retriveNewLocations();
 //                mHandler.postDelayed(mRunnable, LOCATION_UPDATE_INTERVAL);
 //            }
 //        }, LOCATION_UPDATE_INTERVAL);
@@ -723,6 +786,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //    private void stopLocationUpdates(){
 //        mHandler.removeCallbacks(mRunnable);
 //    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void retriveNewLocations(Message message){
+        if(mMap != null) {
+            MarkerOptions options = new MarkerOptions()
+                    .position(message.getLocation())
+                    .draggable(false)
+                    .flat(false)
+                    .title(message.getDate().toString())
+                    .snippet(message.getMsg())
+                    .icon(BitmapDescriptorFactory.fromBitmap(createMarker(message.getUsername(), message.getMsg())));
+
+            Marker marker = mMap.addMarker(options);
+            markerList.add(marker);
+            Log.d(TAG, "Message List locations are set");
+            //positionList.add(message.getLocation());
+            messagesList.add(message);
+
+            //notification
+            String CHANNEL_ID = "my_channel_02";
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.triangle)
+                    .setContentTitle("WeShare")
+                    .setContentText(message.getUsername()+" post "+message.getMsg()+" in WeShare")
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "My Channel02", NotificationManager.IMPORTANCE_DEFAULT);
+
+            ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(channel);
+
+            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+
+            notificationManager.notify(1, builder.build());
+
+
+        }
+    }
 //
 //    private void retriveMessageLocations(){
 //
@@ -766,6 +865,61 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //        }
 //
 //    }
+
+
+
+    private final class EchoWebSocketListener extends WebSocketListener {
+        private static final int NORMAL_CLOSURE_STATUS = 1000;
+        Message message;
+
+        public EchoWebSocketListener(Message message) {
+            this.message = message;
+        }
+
+        public EchoWebSocketListener() {
+
+        }
+
+
+        @Override
+        public void onOpen(WebSocket webSocket, Response response) {
+
+        }
+        @Override
+        public void onMessage(WebSocket webSocket, String json) {
+
+            Gson gson = new GsonBuilder().setDateFormat("EEE, dd MMM yyyy HH:mm:ss").create();
+            Message message = gson.fromJson(json, Message.class);
+            //messagesList.add(message);
+
+            runOnUiThread(new Runnable() {
+                @RequiresApi(api = Build.VERSION_CODES.O)
+                @Override
+                public void run() {
+                    retriveNewLocations(message);
+                }
+            });
+
+
+            Log.i(TAG,"Receiving : " + message);
+        }
+        @Override
+        public void onMessage(WebSocket webSocket, ByteString bytes) {
+            Log.i(TAG,"Receiving bytes : " + bytes.hex());
+        }
+        @Override
+        public void onClosing(WebSocket webSocket, int code, String reason) {
+            webSocket.close(NORMAL_CLOSURE_STATUS, null);
+            Log.i(TAG,"Closing : " + code + " / " + reason);
+        }
+        @Override
+        public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+            Log.i(TAG,"Error : " + t.getMessage());
+        }
+    }
+
+
+
 
 
 

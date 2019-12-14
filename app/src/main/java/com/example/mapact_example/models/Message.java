@@ -7,6 +7,8 @@ import java.io.Serializable;
 import java.util.Date;
 
 public class Message implements Serializable {
+
+    private static long serialVersionUID = 1L;
     private String username;
     private String msg;
     private LatLng location;
